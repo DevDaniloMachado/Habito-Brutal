@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Modal, Pressable, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import BrutalButton from "./BrutalButton";
 
 const ICONS = ["T", "L", "E", "F", "A", "M"];
@@ -9,6 +9,7 @@ export default function HabitForm({ visible, habit, onClose, onSubmit }) {
   const [name, setName] = useState("");
   const [icon, setIcon] = useState(ICONS[0]);
   const [color, setColor] = useState(COLORS[0]);
+  const [requiresPhoto, setRequiresPhoto] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -17,6 +18,7 @@ export default function HabitForm({ visible, habit, onClose, onSubmit }) {
       setName(habit?.name ?? "");
       setIcon(habit?.icon ?? ICONS[0]);
       setColor(habit?.color ?? COLORS[0]);
+      setRequiresPhoto(Boolean(habit?.requires_photo));
       setError("");
     }
   }, [habit, visible]);
@@ -29,7 +31,7 @@ export default function HabitForm({ visible, habit, onClose, onSubmit }) {
 
     try {
       setSaving(true);
-      await onSubmit({ name, icon, color });
+      await onSubmit({ name, icon, color, requiresPhoto });
       onClose();
     } catch (submitError) {
       setError(submitError.message);
@@ -84,6 +86,19 @@ export default function HabitForm({ visible, habit, onClose, onSubmit }) {
                 ]}
               />
             ))}
+          </View>
+
+          <View style={styles.switchRow}>
+            <View style={styles.switchText}>
+              <Text style={styles.switchTitle}>Prova fotografica</Text>
+              <Text style={styles.switchMeta}>Exigir foto para concluir.</Text>
+            </View>
+            <Switch
+              value={requiresPhoto}
+              onValueChange={setRequiresPhoto}
+              thumbColor={requiresPhoto ? "#f2f2f2" : "#5a5a5a"}
+              trackColor={{ false: "#242424", true: "#ff3b30" }}
+            />
           </View>
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -184,6 +199,31 @@ const styles = StyleSheet.create({
   },
   colorActive: {
     borderColor: "#f2f2f2"
+  },
+  switchRow: {
+    minHeight: 64,
+    borderWidth: 2,
+    borderColor: "#333",
+    borderRadius: 6,
+    paddingHorizontal: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 14
+  },
+  switchText: {
+    flex: 1
+  },
+  switchTitle: {
+    color: "#f2f2f2",
+    fontSize: 15,
+    fontWeight: "900",
+    textTransform: "uppercase"
+  },
+  switchMeta: {
+    color: "#858585",
+    marginTop: 3,
+    fontWeight: "700"
   },
   error: {
     color: "#ff453a",

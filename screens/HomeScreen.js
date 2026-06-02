@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   FlatList,
   StyleSheet,
   Text,
@@ -9,9 +10,14 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import BrutalButton from "../components/BrutalButton";
+import CameraProofModal from "../components/CameraProofModal";
 import HabitCard from "../components/HabitCard";
 import HabitForm from "../components/HabitForm";
+import PenaltyPanel from "../components/PenaltyPanel";
+import SegmentedTabs from "../components/SegmentedTabs";
+import TimelinePanel from "../components/TimelinePanel";
 import { useHabits } from "../hooks/useHabits";
+import { persistProofPhoto } from "../services/proofService";
 
 export default function HomeScreen() {
   const {
@@ -19,16 +25,34 @@ export default function HomeScreen() {
     checks,
     checkedHabitIds,
     streak,
+    penalties,
+    penaltyTotalCents,
+    penaltyFailures,
+    timeline,
+    notificationSettings,
     loading,
     error,
     progress,
     addHabit,
     editHabit,
     removeHabit,
-    markComplete
+    markComplete,
+    enableDailyReminder,
+    todayKey
   } = useHabits();
   const [formVisible, setFormVisible] = useState(false);
   const [editingHabit, setEditingHabit] = useState(null);
+  const [activeTab, setActiveTab] = useState("today");
+  const [proofHabit, setProofHabit] = useState(null);
+  const progressAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(progressAnim, {
+      toValue: progress,
+      duration: 420,
+      useNativeDriver: false
+    }).start();
+  }, [progress, progressAnim]);
 
   const checkByHabit = useMemo(() => {
     return checks.reduce((map, check) => {
@@ -55,6 +79,47 @@ export default function HomeScreen() {
     }
   }
 
+  async function handleComplete(habit) {
+    try {
+      if (habit.requires_photo) {
+        setProofHabit(habit);
+        return;
+      }
+
+      await markComplete(habit.id);
+    } catch (completeError) {
+      Alert.alert("Falha no check", completeError.message);
+    }
+  }
+
+  async function handleProofCaptured(tempUri) {
+    if (!proofHabit) {
+      return;
+    }
+
+    try {
+      const proofUri = await persistProofPhoto(tempUri, proofHabit.id, todayKey);
+      await markComplete(proofHabit.id, proofUri);
+    } catch (proofError) {
+      Alert.alert("Prova recusada", proofError.message);
+    }
+  }
+
+  async function handleEnableReminder() {
+    try {
+      const settings = await enableDailyReminder();
+
+      Alert.alert(
+        "Notificacoes",
+        settings.enabled
+          ? "Lembrete das 21h ativado."
+          : "Permissao negada. Ative as notificacoes no sistema."
+      );
+    } catch (notificationError) {
+      Alert.alert("Notificacoes", notificationError.message);
+    }
+  }
+
   if (loading) {
     return (
       <SafeAreaView style={styles.center}>
@@ -65,6 +130,12 @@ export default function HomeScreen() {
 
   const completedCount = checks.length;
   const progressPercent = Math.round(progress * 100);
+  const animatedProgressWidth = progressAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0%", "100%"]
+  });
+  const disciplineLabel =
+    progressPercent === 100 ? "blindado" : progressPercent >= 50 ? "em combate" : "sob risco";
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -88,12 +159,16 @@ export default function HomeScreen() {
             <Text style={styles.progressText}>{progressPercent}%</Text>
           </View>
           <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
+            <Animated.View style={[styles.progressFill, { width: animatedProgressWidth }]} />
           </View>
           <View style={styles.statsRow}>
             <View>
               <Text style={styles.statNumber}>{streak.bestStreak}</Text>
               <Text style={styles.statLabel}>melhor streak</Text>
+            </View>
+            <View>
+              <Text style={styles.statNumber}>{disciplineLabel}</Text>
+              <Text style={styles.statLabel}>disciplina</Text>
             </View>
             <View>
               <Text style={styles.statNumber}>{habits.length}/3</Text>
@@ -104,39 +179,72 @@ export default function HomeScreen() {
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        <FlatList
-          data={habits}
-          keyExtractor={(item) => String(item.id)}
-          contentContainerStyle={styles.list}
-          ListEmptyComponent={
-            <View style={styles.empty}>
-              <Text style={styles.emptyTitle}>Sem desculpas.</Text>
-              <Text style={styles.emptyText}>Crie ate 3 habitos e marque todos os dias.</Text>
-            </View>
-          }
-          renderItem={({ item }) => {
-            const completed = checkedHabitIds.has(item.id);
-            return (
-              <HabitCard
-                habit={item}
-                completed={completed}
-                check={checkByHabit[item.id]}
-                onComplete={() => markComplete(item.id)}
-                onEdit={() => {
-                  setEditingHabit(item);
-                  setFormVisible(true);
-                }}
-                onDelete={() => removeHabit(item.id)}
-              />
-            );
-          }}
+        <SegmentedTabs
+          value={activeTab}
+          onChange={setActiveTab}
+          items={[
+            { value: "today", label: "Hoje" },
+            { value: "penalties", label: "Multas" },
+            { value: "history", label: "Historico" }
+          ]}
         />
 
-        <BrutalButton
-          label={habits.length >= 3 ? "Limite atingido" : "Adicionar habito"}
-          onPress={openCreate}
-          disabled={habits.length >= 3}
-        />
+        {activeTab === "today" ? (
+          <>
+            <FlatList
+              data={habits}
+              keyExtractor={(item) => String(item.id)}
+              contentContainerStyle={styles.list}
+              ListEmptyComponent={
+                <View style={styles.empty}>
+                  <Text style={styles.emptyTitle}>Sem desculpas.</Text>
+                  <Text style={styles.emptyText}>Crie ate 3 habitos e marque todos os dias.</Text>
+                </View>
+              }
+              renderItem={({ item }) => {
+                const completed = checkedHabitIds.has(item.id);
+                return (
+                  <HabitCard
+                    habit={item}
+                    completed={completed}
+                    check={checkByHabit[item.id]}
+                    onComplete={() => handleComplete(item)}
+                    onEdit={() => {
+                      setEditingHabit(item);
+                      setFormVisible(true);
+                    }}
+                    onDelete={() => removeHabit(item.id)}
+                  />
+                );
+              }}
+            />
+
+            <View style={styles.bottomActions}>
+              <BrutalButton
+                label={habits.length >= 3 ? "Limite atingido" : "Adicionar habito"}
+                onPress={openCreate}
+                disabled={habits.length >= 3}
+                style={styles.actionButton}
+              />
+              <BrutalButton
+                label={notificationSettings?.daily_reminder_enabled ? "21h ativo" : "Ativar 21h"}
+                variant="ghost"
+                onPress={handleEnableReminder}
+                style={styles.actionButton}
+              />
+            </View>
+          </>
+        ) : null}
+
+        {activeTab === "penalties" ? (
+          <PenaltyPanel
+            penalties={penalties}
+            totalCents={penaltyTotalCents}
+            failures={penaltyFailures}
+          />
+        ) : null}
+
+        {activeTab === "history" ? <TimelinePanel events={timeline} /> : null}
       </View>
 
       <HabitForm
@@ -144,6 +252,12 @@ export default function HomeScreen() {
         habit={editingHabit}
         onClose={() => setFormVisible(false)}
         onSubmit={handleSubmit}
+      />
+      <CameraProofModal
+        visible={Boolean(proofHabit)}
+        habit={proofHabit}
+        onClose={() => setProofHabit(null)}
+        onCaptured={handleProofCaptured}
       />
     </SafeAreaView>
   );
@@ -234,11 +348,12 @@ const styles = StyleSheet.create({
   },
   statsRow: {
     flexDirection: "row",
-    justifyContent: "space-between"
+    justifyContent: "space-between",
+    gap: 12
   },
   statNumber: {
     color: "#f2f2f2",
-    fontSize: 26,
+    fontSize: 20,
     fontWeight: "900"
   },
   statLabel: {
@@ -252,8 +367,16 @@ const styles = StyleSheet.create({
     fontWeight: "800"
   },
   list: {
+    flexGrow: 1,
     gap: 12,
     paddingBottom: 4
+  },
+  bottomActions: {
+    flexDirection: "row",
+    gap: 10
+  },
+  actionButton: {
+    flex: 1
   },
   empty: {
     minHeight: 180,

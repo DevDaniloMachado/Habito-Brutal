@@ -8,7 +8,7 @@ export async function getHabits() {
   );
 }
 
-export async function createHabit({ name, icon, color }) {
+export async function createHabit({ name, icon, color, requiresPhoto }) {
   const db = getDatabase();
   const countRow = await db.getFirstAsync("SELECT COUNT(*) as total FROM habits");
 
@@ -19,15 +19,16 @@ export async function createHabit({ name, icon, color }) {
   const createdAt = new Date().toISOString();
 
   await db.runAsync(
-    "INSERT INTO habits (name, icon, color, created_at) VALUES (?, ?, ?, ?)",
-    [name.trim(), icon, color, createdAt]
+    `INSERT INTO habits (name, icon, color, requires_photo, created_at)
+     VALUES (?, ?, ?, ?, ?)`,
+    [name.trim(), icon, color, requiresPhoto ? 1 : 0, createdAt]
   );
 }
 
-export async function updateHabit(id, { name, icon, color }) {
+export async function updateHabit(id, { name, icon, color, requiresPhoto }) {
   await getDatabase().runAsync(
-    "UPDATE habits SET name = ?, icon = ?, color = ? WHERE id = ?",
-    [name.trim(), icon, color, id]
+    "UPDATE habits SET name = ?, icon = ?, color = ?, requires_photo = ? WHERE id = ?",
+    [name.trim(), icon, color, requiresPhoto ? 1 : 0, id]
   );
 }
 
@@ -42,7 +43,16 @@ export async function getTodayChecks(dateKey) {
   );
 }
 
-export async function completeHabit(habitId, dateKey) {
+export async function completeHabit(habitId, dateKey, proofUri = null) {
+  const habit = await getDatabase().getFirstAsync(
+    "SELECT * FROM habits WHERE id = ?",
+    [habitId]
+  );
+
+  if (habit?.requires_photo && !proofUri) {
+    throw new Error("Este habito exige prova fotografica.");
+  }
+
   const completedAt = new Date().toISOString();
 
   await getDatabase().runAsync(
@@ -50,4 +60,17 @@ export async function completeHabit(habitId, dateKey) {
      VALUES (?, ?, ?)`,
     [habitId, dateKey, completedAt]
   );
+
+  const check = await getDatabase().getFirstAsync(
+    "SELECT * FROM habit_checks WHERE habit_id = ? AND date_key = ?",
+    [habitId, dateKey]
+  );
+
+  if (proofUri && check) {
+    await getDatabase().runAsync(
+      `INSERT INTO proof_photos (habit_id, check_id, date_key, image_uri, created_at)
+       VALUES (?, ?, ?, ?, ?)`,
+      [habitId, check.id, dateKey, proofUri, completedAt]
+    );
+  }
 }

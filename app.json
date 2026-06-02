@@ -17,6 +17,16 @@
     "android": {},
     "web": {
       "bundler": "metro"
-    }
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Permita que o Habito Brutal registre provas fotograficas.",
+          "recordAudioAndroid": false
+        }
+      ],
+      "expo-notifications"
+    ]
   }
 }

@@ -1,5 +1,5 @@
 import React from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import { formatTime } from "../utils/date";
 import BrutalButton from "./BrutalButton";
 
@@ -11,8 +11,25 @@ export default function HabitCard({
   onEdit,
   onDelete
 }) {
+  const scale = React.useRef(new Animated.Value(1)).current;
+
+  React.useEffect(() => {
+    if (completed) {
+      Animated.sequence([
+        Animated.spring(scale, { toValue: 1.02, useNativeDriver: true }),
+        Animated.spring(scale, { toValue: 1, useNativeDriver: true })
+      ]).start();
+    }
+  }, [completed, scale]);
+
   return (
-    <View style={[styles.card, { borderLeftColor: habit.color }]}>
+    <Animated.View
+      style={[
+        styles.card,
+        completed && styles.completedCard,
+        { borderLeftColor: habit.color, transform: [{ scale }] }
+      ]}
+    >
       <Pressable onPress={onEdit} style={styles.main}>
         <View style={[styles.iconBox, { backgroundColor: habit.color }]}>
           <Text style={styles.icon}>{habit.icon}</Text>
@@ -22,6 +39,7 @@ export default function HabitCard({
           <Text style={styles.meta}>
             {completed ? `Concluido as ${formatTime(check.completed_at)}` : "Pendente hoje"}
           </Text>
+          {habit.requires_photo ? <Text style={styles.proof}>Foto obrigatoria</Text> : null}
         </View>
       </Pressable>
 
@@ -45,7 +63,7 @@ export default function HabitCard({
           <Text style={styles.deleteText}>X</Text>
         </Pressable>
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -58,6 +76,9 @@ const styles = StyleSheet.create({
     borderLeftWidth: 8,
     padding: 14,
     gap: 14
+  },
+  completedCard: {
+    borderColor: "#f2f2f2"
   },
   main: {
     flexDirection: "row",
@@ -90,6 +111,19 @@ const styles = StyleSheet.create({
     color: "#9a9a9a",
     fontSize: 13,
     fontWeight: "700"
+  },
+  proof: {
+    alignSelf: "flex-start",
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: "#ff3b30",
+    borderRadius: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    color: "#ff453a",
+    fontSize: 11,
+    fontWeight: "900",
+    textTransform: "uppercase"
   },
   actions: {
     flexDirection: "row",
