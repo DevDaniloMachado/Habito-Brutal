@@ -26,6 +26,14 @@ export async function getDailyTimeline() {
      LEFT JOIN habits ON habits.id = penalties.habit_id
      ORDER BY date_key DESC, datetime(occurred_at) DESC`
   );
+  const notes = await db.getAllAsync(
+    `SELECT date_key,
+            updated_at as occurred_at,
+            success_reason,
+            failure_reason
+     FROM daily_notes
+     ORDER BY date_key DESC, datetime(updated_at) DESC`
+  );
 
   const events = [
     ...checks.map((check) => ({
@@ -39,6 +47,13 @@ export async function getDailyTimeline() {
       id: `penalty-${penalty.date_key}-${penalty.habit_name}-${penalty.occurred_at}`,
       type: "penalty",
       title: "Multa registrada"
+    })),
+    ...notes.map((note) => ({
+      ...note,
+      id: `note-${note.date_key}-${note.occurred_at}`,
+      type: "note",
+      habit_name: note.success_reason || note.failure_reason,
+      title: "Diario registrado"
     }))
   ];
 

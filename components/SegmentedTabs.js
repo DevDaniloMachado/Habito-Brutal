@@ -25,13 +25,15 @@ export default function SegmentedTabs({ value, onChange, items }) {
 const styles = StyleSheet.create({
   tabs: {
     flexDirection: "row",
+    flexWrap: "wrap",
     borderWidth: 2,
     borderColor: "#2b2b2b",
     borderRadius: 8,
     overflow: "hidden"
   },
   tab: {
-    flex: 1,
+    minWidth: "33.33%",
+    flexGrow: 1,
     minHeight: 46,
     alignItems: "center",
     justifyContent: "center",

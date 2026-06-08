@@ -22,11 +22,21 @@ export default function TimelinePanel({ events }) {
             <Text style={styles.date}>{item.date_key}</Text>
             <Text style={styles.title}>{item.title}</Text>
             <Text style={styles.meta}>
-              {item.habit_name ?? "Habito removido"}
+              {item.type === "note" ? "Reflexao diaria" : item.habit_name ?? "Habito removido"}
               {item.type === "penalty"
                 ? ` - ${formatCurrencyFromCents(item.amount_cents)}`
                 : ""}
             </Text>
+            {item.type === "note" ? (
+              <View style={styles.noteBox}>
+                {item.success_reason ? (
+                  <Text style={styles.noteText}>Consegui: {item.success_reason}</Text>
+                ) : null}
+                {item.failure_reason ? (
+                  <Text style={styles.noteText}>Falhei: {item.failure_reason}</Text>
+                ) : null}
+              </View>
+            ) : null}
             {item.image_uri ? (
               <Image source={{ uri: item.image_uri }} style={styles.photo} />
             ) : null}
@@ -96,6 +106,14 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     marginTop: 12,
     backgroundColor: "#242424"
+  },
+  noteBox: {
+    marginTop: 10,
+    gap: 6
+  },
+  noteText: {
+    color: "#f2f2f2",
+    fontWeight: "800"
   },
   empty: {
     minHeight: 180,

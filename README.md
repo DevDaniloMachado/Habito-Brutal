@@ -14,6 +14,11 @@ MVP mobile offline feito com React Native, Expo e SQLite local.
 - Notificacao local diaria as 21h com a mensagem "Vai falhar hoje?".
 - Notificacoes locais para habito concluido, todos completos e streak perdido.
 - Timeline com checks, provas fotograficas, falhas e multas.
+- Dashboard com streak, consistencia, falhas, concluidos e multas.
+- Heatmap estilo GitHub Contributions dos ultimos dias.
+- Tela de evolucao com graficos semanais, mensais, horarios de falha e habitos dificeis.
+- Diario diario de 1 linha para vitorias e falhas.
+- Relatorio semanal em PDF gerado e salvo localmente.
 - Persistencia 100% local e offline.
 
 ## Estrutura
@@ -37,10 +42,12 @@ O app cria o arquivo SQLite `habito_brutal.db` no dispositivo com:
 - `proof_photos`
 - `penalties`
 - `notification_settings`
+- `daily_notes`
+- `weekly_reports`
 
 O streak e recalculado a partir do historico de checks. Se todos os habitos foram concluidos hoje, o dia entra na sequencia. Se algum habito faltar, a sequencia volta para a ultima cadeia completa ate ontem ou zera automaticamente no dia seguinte.
 
-As fotos sao copiadas para o armazenamento local do app em `proofs/`. Multas e configuracao do lembrete tambem ficam no SQLite local, sem integracao bancaria ou servico remoto.
+As fotos sao copiadas para o armazenamento local do app em `proofs/`. Relatorios semanais em PDF sao salvos em `reports/`. Multas, diario e configuracao do lembrete tambem ficam no SQLite local, sem integracao bancaria ou servico remoto.
 
 ## Como rodar
 

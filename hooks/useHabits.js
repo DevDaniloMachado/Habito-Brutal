@@ -8,7 +8,9 @@ import {
   getTodayChecks,
   updateHabit
 } from "../services/habitService";
+import { getAnalytics } from "../services/analyticsService";
 import { getDailyTimeline } from "../services/historyService";
+import { getDailyNote, saveDailyNote } from "../services/journalService";
 import {
   configureDailyReminder,
   getNotificationSettings,
@@ -20,6 +22,7 @@ import {
   getPenaltySummary,
   registerMissedHabitPenalties
 } from "../services/penaltyService";
+import { generateWeeklyPdf } from "../services/reportService";
 import { recalculateStreak } from "../services/streakService";
 import { getLocalDateKey } from "../utils/date";
 
@@ -38,18 +41,43 @@ export function useHabits() {
   const [penaltyFailures, setPenaltyFailures] = useState(0);
   const [timeline, setTimeline] = useState([]);
   const [notificationSettings, setNotificationSettings] = useState(null);
+  const [analytics, setAnalytics] = useState({
+    completedTotal: 0,
+    expectedTotal: 0,
+    consistencyRate: 0,
+    failureTotal: 0,
+    heatmapDays: [],
+    weeklySeries: [],
+    monthlySeries: [],
+    difficultHabits: [],
+    failureHours: []
+  });
+  const [dailyNote, setDailyNote] = useState({
+    successReason: "",
+    failureReason: ""
+  });
 
   const todayKey = useMemo(() => getLocalDateKey(), []);
 
   const refresh = useCallback(async () => {
     setError("");
     const missedPenalties = await registerMissedHabitPenalties(todayKey);
-    const [habitRows, checkRows, penaltySummary, timelineRows, notificationRows] = await Promise.all([
+    const [
+      habitRows,
+      checkRows,
+      penaltySummary,
+      timelineRows,
+      notificationRows,
+      analyticsRows,
+      noteRows
+    ] = await Promise.all([
       getHabits(),
       getTodayChecks(todayKey),
       getPenaltySummary(),
       getDailyTimeline(),
-      getNotificationSettings()
+      getNotificationSettings(),
+      getAnalytics(todayKey),
+      getDailyNote(todayKey)
     ]);
 
     setHabits(habitRows);
@@ -59,6 +87,8 @@ export function useHabits() {
     setPenaltyFailures(penaltySummary.totalFailures);
     setTimeline(timelineRows);
     setNotificationSettings(notificationRows);
+    setAnalytics(analyticsRows);
+    setDailyNote(noteRows);
     setStreak(await recalculateStreak(todayKey));
 
     if (missedPenalties > 0) {
@@ -128,6 +158,20 @@ export function useHabits() {
     return settings;
   }, [refresh]);
 
+  const saveNote = useCallback(
+    async (note) => {
+      await saveDailyNote(todayKey, note);
+      await refresh();
+    },
+    [refresh, todayKey]
+  );
+
+  const createWeeklyReport = useCallback(async () => {
+    const report = await generateWeeklyPdf(streak, todayKey);
+    await refresh();
+    return report;
+  }, [refresh, streak, todayKey]);
+
   const checkedHabitIds = useMemo(
     () => new Set(checks.map((check) => check.habit_id)),
     [checks]
@@ -143,6 +187,8 @@ export function useHabits() {
     penaltyFailures,
     timeline,
     notificationSettings,
+    analytics,
+    dailyNote,
     loading,
     error,
     todayKey,
@@ -151,6 +197,8 @@ export function useHabits() {
     editHabit,
     removeHabit,
     markComplete,
-    enableDailyReminder
+    enableDailyReminder,
+    saveNote,
+    createWeeklyReport
   };
 }

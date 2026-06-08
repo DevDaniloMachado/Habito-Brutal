@@ -56,6 +56,24 @@ export async function initDatabase() {
       updated_at TEXT
     );
 
+    CREATE TABLE IF NOT EXISTS daily_notes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date_key TEXT NOT NULL UNIQUE,
+      success_reason TEXT,
+      failure_reason TEXT,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS weekly_reports (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      week_start TEXT NOT NULL UNIQUE,
+      week_end TEXT NOT NULL,
+      file_uri TEXT NOT NULL,
+      completion_rate INTEGER NOT NULL,
+      failures INTEGER NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS streak_state (
       id INTEGER PRIMARY KEY CHECK (id = 1),
       current_streak INTEGER NOT NULL DEFAULT 0,

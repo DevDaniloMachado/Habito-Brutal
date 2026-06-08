@@ -11,10 +11,12 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import BrutalButton from "../components/BrutalButton";
 import CameraProofModal from "../components/CameraProofModal";
+import EvolutionPanel from "../components/EvolutionPanel";
 import HabitCard from "../components/HabitCard";
 import HabitForm from "../components/HabitForm";
 import PenaltyPanel from "../components/PenaltyPanel";
 import SegmentedTabs from "../components/SegmentedTabs";
+import StatsPanel from "../components/StatsPanel";
 import TimelinePanel from "../components/TimelinePanel";
 import { useHabits } from "../hooks/useHabits";
 import { persistProofPhoto } from "../services/proofService";
@@ -30,6 +32,8 @@ export default function HomeScreen() {
     penaltyFailures,
     timeline,
     notificationSettings,
+    analytics,
+    dailyNote,
     loading,
     error,
     progress,
@@ -38,6 +42,8 @@ export default function HomeScreen() {
     removeHabit,
     markComplete,
     enableDailyReminder,
+    saveNote,
+    createWeeklyReport,
     todayKey
   } = useHabits();
   const [formVisible, setFormVisible] = useState(false);
@@ -184,6 +190,8 @@ export default function HomeScreen() {
           onChange={setActiveTab}
           items={[
             { value: "today", label: "Hoje" },
+            { value: "stats", label: "Dados" },
+            { value: "evolution", label: "Evolucao" },
             { value: "penalties", label: "Multas" },
             { value: "history", label: "Historico" }
           ]}
@@ -243,6 +251,19 @@ export default function HomeScreen() {
             failures={penaltyFailures}
           />
         ) : null}
+
+        {activeTab === "stats" ? (
+          <StatsPanel
+            analytics={analytics}
+            streak={streak}
+            penaltyTotalCents={penaltyTotalCents}
+            dailyNote={dailyNote}
+            onSaveNote={saveNote}
+            onGeneratePdf={createWeeklyReport}
+          />
+        ) : null}
+
+        {activeTab === "evolution" ? <EvolutionPanel analytics={analytics} /> : null}
 
         {activeTab === "history" ? <TimelinePanel events={timeline} /> : null}
       </View>
